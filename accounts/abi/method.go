@@ -144,17 +144,24 @@ func (method Method) singleUnpack(v interface{}, output []byte) error {
 		return fmt.Errorf("abi: Unpack(non-pointer %T)", v)
 	}
 
-	// if we reach this part, there is only one output member from the contract method.
-	// for mobile, the result type is always a slice.
-	var firstValue reflect.Value
-	if reflect.Slice == value.Kind() {
-		// take the first element
-		firstValue = value.Index(0).Elem()
-	} else {
-		firstValue = value
+	value := valueOf.Elem()
+
+	marshalledValue, err := toGoType(0, method.Outputs[0].Type, output)
+	if err != nil {
+		return err
 	}
 
-	if err := set(firstValue, reflect.ValueOf(marshalledValue), method.Outputs[0]); err != nil {
+
+	// if we reach this part, there is only one output member from the contract method.
+	// for mobile, the result type is always a slice.
+	if reflect.Slice == value.Kind() && value.Len() >= 1 {
+		//check if it's not a byte slice
+		if reflect.TypeOf([]byte{}) != value.Type() {
+			value = value.Index(0).Elem()
+		}
+	}
+	
+	if err := set(value, reflect.ValueOf(marshalledValue), method.Outputs[0]); err != nil {
 		return err
 	}
 	return nil
